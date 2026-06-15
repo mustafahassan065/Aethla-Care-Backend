@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { Document } from 'mongoose'
+import { Document, Types } from 'mongoose'
 
 @Schema({ timestamps: true })
 export class Client extends Document {
+  // Link to family portal user
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null }) userId?: Types.ObjectId
+
   @Prop({ required: true }) firstName: string
   @Prop({ required: true }) lastName: string
   @Prop({ required: true }) dateOfBirth: string
@@ -32,3 +35,4 @@ ClientSchema.virtual('fullName').get(function () {
 })
 ClientSchema.index({ status: 1, careType: 1 })
 ClientSchema.index({ 'address.city': 1 })
+ClientSchema.index({ userId: 1 })
