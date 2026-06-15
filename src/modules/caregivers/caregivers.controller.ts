@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { AuthGuard } from '@nestjs/passport'
 import { CaregiversService } from './caregivers.service'
 
@@ -8,12 +8,38 @@ import { CaregiversService } from './caregivers.service'
 @UseGuards(AuthGuard('jwt'))
 @Controller('caregivers')
 export class CaregiversController {
-  constructor(private readonly svc: CaregiversService) {}
-  @Get() getAll(@Query() q: any) { return this.svc.findAll(q) }
-  @Get(':id') getOne(@Param('id') id: string) { return this.svc.findOne(id) }
-  @Post() create(@Body() dto: any) { return this.svc.create(dto) }
-  @Patch(':id') update(@Param('id') id: string, @Body() dto: any) { return this.svc.update(id, dto) }
-  @Delete(':id') remove(@Param('id') id: string) { return this.svc.remove(id) }
-  @Post('match') match(@Body() criteria: any) { return this.svc.matchCaregiver(criteria) }
-  @Get(':id/schedule') getSchedule(@Param('id') id: string, @Query() q: any) { return this.svc.getSchedule(id, q) }
+  constructor(private readonly caregiversService: CaregiversService) {}
+
+  // Employee portal — get MY caregiver record by logged-in user
+  // MUST be before @Get(':id') to avoid conflict
+  @Get('me')
+  @ApiOperation({ summary: 'Get caregiver profile for logged-in employee' })
+  async getMyProfile(@Request() req: any) {
+    const userId = req.user._id || req.user.userId || req.user.sub
+    const caregiver = await this.caregiversService.findByUserId(userId)
+    if (!caregiver) {
+      return null // Return null, frontend handles "not linked yet"
+    }
+    return caregiver
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all caregivers' })
+  getAll(@Query() q: any) { return this.caregiversService.findAll(q) }
+
+  @Get(':id')
+  getOne(@Param('id') id: string) { return this.caregiversService.findOne(id) }
+
+  @Post()
+  create(@Body() dto: any) { return this.caregiversService.create(dto) }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: any) { return this.caregiversService.update(id, dto) }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) { return this.caregiversService.remove(id) }
+
+  @Post('match')
+  @ApiOperation({ summary: 'Find matching caregivers for a client' })
+  match(@Body() dto: any) { return this.caregiversService.match(dto) }
 }
