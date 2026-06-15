@@ -8,7 +8,7 @@ import { PublicService } from './public.service'
 export class PublicController {
   constructor(private readonly svc: PublicService) {}
 
-  // Public endpoints (no auth)
+  // Public endpoints
   @Post('consultation')
   submitConsultation(@Body() dto: any) { return this.svc.submitConsultation(dto) }
 
@@ -27,7 +27,7 @@ export class PublicController {
   @Get('faqs')
   getFaqs() { return this.svc.getFaqs() }
 
-  // Admin endpoints (JWT required)
+  // Admin endpoints
   @Get('consultations')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
@@ -36,7 +36,15 @@ export class PublicController {
   @Patch('consultations/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  updateConsultation(@Param('id') id: string, @Body() dto: any) {
-    return this.svc.updateConsultation(id, dto)
-  }
+  updateConsultation(@Param('id') id: string, @Body() dto: any) { return this.svc.updateConsultation(id, dto) }
+
+  @Get('careers/applications')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  getCareerApplications(@Query() q: any) { return this.svc.getCareerApplications(q) }
+
+  @Patch('careers/applications/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  updateCareerApplication(@Param('id') id: string, @Body() dto: any) { return this.svc.updateCareerApplication(id, dto) }
 }
