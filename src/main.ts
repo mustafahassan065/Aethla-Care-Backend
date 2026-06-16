@@ -29,18 +29,19 @@ async function bootstrap() {
 
   // ── CORS ────────────────────────────────────────────────
   app.use(require('express').json({ limit: '10mb' }))
-  app.use(require('express').urlencoded({ limit: '10mb', extended: true }))
-  app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://aethlacare.qa',
-      'https://www.aethlacare.qa',
-      'https://admin.aethlacare.qa',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  })
+app.use(require('express').urlencoded({ limit: '10mb', extended: true }))
+
+app.enableCors({
+  origin: [
+    'http://localhost:3000',
+    'https://aethlacare.com',
+    'https://www.aethlacare.com',
+    'https://api.aethlacare.com',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+})
 
   // ── Global prefix ────────────────────────────────────────
   app.setGlobalPrefix('api/v1')
