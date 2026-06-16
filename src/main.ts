@@ -28,6 +28,8 @@ async function bootstrap() {
   app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'))
 
   // ── CORS ────────────────────────────────────────────────
+  app.use(require('express').json({ limit: '10mb' }))
+  app.use(require('express').urlencoded({ limit: '10mb', extended: true }))
   app.enableCors({
     origin: [
       'http://localhost:3000',
