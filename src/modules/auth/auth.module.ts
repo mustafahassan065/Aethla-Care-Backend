@@ -15,7 +15,7 @@ import { ActivityModule } from '../activity/activity.module'
   imports: [
     PassportModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule,ActivityModule],
+      imports: [ConfigModule],
       useFactory: (cfg: ConfigService) => ({
         secret: cfg.get('JWT_SECRET'),
         signOptions: { expiresIn: cfg.get('JWT_EXPIRES_IN', '7d') },
@@ -23,6 +23,7 @@ import { ActivityModule } from '../activity/activity.module'
       inject: [ConfigService],
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    ActivityModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, LocalStrategy],
