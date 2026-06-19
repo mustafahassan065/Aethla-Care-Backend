@@ -8,12 +8,14 @@ import { AuthService } from './auth.service'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { LocalStrategy } from './strategies/local.strategy'
 import { User, UserSchema } from '../users/schemas/user.schema'
+import { ActivityModule } from '../activity/activity.module'
+
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule],
+      imports: [ConfigModule,ActivityModule],
       useFactory: (cfg: ConfigService) => ({
         secret: cfg.get('JWT_SECRET'),
         signOptions: { expiresIn: cfg.get('JWT_EXPIRES_IN', '7d') },

@@ -19,6 +19,8 @@ import { StaffModule }      from './modules/staff/staff.module'
 import { MatchingModule }   from './modules/matching/matching.module'
 import { DashboardModule }  from './modules/dashboard/dashboard.module'
 import { PublicModule }     from './modules/public/public.module'
+import { ActivityModule } from './modules/activity/activity.module'
+
 
 @Module({
   imports: [
@@ -57,6 +59,7 @@ import { PublicModule }     from './modules/public/public.module'
     MatchingModule,
     DashboardModule,
     PublicModule,
+    ActivityModule
   ],
 })
 export class AppModule {}
