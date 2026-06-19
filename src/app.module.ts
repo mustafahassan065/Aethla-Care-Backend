@@ -20,6 +20,7 @@ import { MatchingModule }   from './modules/matching/matching.module'
 import { DashboardModule }  from './modules/dashboard/dashboard.module'
 import { PublicModule }     from './modules/public/public.module'
 import { ActivityModule } from './modules/activity/activity.module'
+import { SettingsModule } from './modules/settings/settings.module'
 
 
 @Module({
@@ -59,7 +60,8 @@ import { ActivityModule } from './modules/activity/activity.module'
     MatchingModule,
     DashboardModule,
     PublicModule,
-    ActivityModule
+    ActivityModule,
+    SettingsModule
   ],
 })
 export class AppModule {}
