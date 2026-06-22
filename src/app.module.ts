@@ -21,6 +21,7 @@ import { DashboardModule }  from './modules/dashboard/dashboard.module'
 import { PublicModule }     from './modules/public/public.module'
 import { ActivityModule } from './modules/activity/activity.module'
 import { SettingsModule } from './modules/settings/settings.module'
+import { FAQModule } from './modules/faq/faq.module'
 
 
 @Module({
@@ -61,7 +62,8 @@ import { SettingsModule } from './modules/settings/settings.module'
     DashboardModule,
     PublicModule,
     ActivityModule,
-    SettingsModule
+    SettingsModule,
+    FAQModule
   ],
 })
 export class AppModule {}

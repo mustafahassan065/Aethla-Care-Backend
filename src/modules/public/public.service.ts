@@ -94,15 +94,10 @@ export class PublicService {
     const signup = await this.patientSignupModel.findById(id)
     if (!signup) throw new NotFoundException('Signup not found')
 
-    // Check if user already exists
     const existingUser = await this.userModel.findOne({ email: signup.email })
     if (existingUser) {
-      // Already approved before — just update status and link client
       if (clientId) {
-        await this.clientModel.findByIdAndUpdate(
-          new Types.ObjectId(clientId),
-          { userId: existingUser._id }
-        )
+        await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: existingUser._id })
       }
       await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
       return { success: true, userId: existingUser._id }
@@ -116,10 +111,7 @@ export class PublicService {
       isActive: true, isVerified: true,
     })
     if (clientId) {
-      await this.clientModel.findByIdAndUpdate(
-        new Types.ObjectId(clientId),
-        { userId: user._id }
-      )
+      await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: user._id })
     }
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
@@ -127,6 +119,18 @@ export class PublicService {
 
   async rejectPatientSignup(id: string) {
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'rejected' })
+    return { success: true }
+  }
+
+  // Undo — revert to pending
+  async undoPatientSignup(id: string) {
+    await this.patientSignupModel.findByIdAndUpdate(id, { status: 'pending' })
+    return { success: true }
+  }
+
+  // Delete permanently
+  async deletePatientSignup(id: string) {
+    await this.patientSignupModel.findByIdAndDelete(id)
     return { success: true }
   }
 
@@ -153,10 +157,8 @@ export class PublicService {
     const signup = await this.employeeSignupModel.findById(id)
     if (!signup) throw new NotFoundException('Signup not found')
 
-    // Check if user already exists with this email
     const existingUser = await this.userModel.findOne({ email: signup.email })
     if (existingUser) {
-      // User already created — check if caregiver record exists
       const existingCg = await this.caregiverModel.findOne({ userId: existingUser._id })
       if (!existingCg) {
         await this.caregiverModel.create({
@@ -173,7 +175,6 @@ export class PublicService {
       return { success: true, userId: existingUser._id }
     }
 
-    // Create new user
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
       firstName: signup.firstName, lastName: signup.lastName,
@@ -181,8 +182,6 @@ export class PublicService {
       password: hash, role: 'caregiver',
       isActive: true, isVerified: true,
     })
-
-    // Create caregiver record
     await this.caregiverModel.create({
       userId: user._id,
       specializations: signup.specialization ? [signup.specialization] : [],
@@ -192,13 +191,24 @@ export class PublicService {
       backgroundCheckStatus: 'pending',
       rating: 0,
     })
-
     await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
   }
 
   async rejectEmployeeSignup(id: string) {
     await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'rejected' })
+    return { success: true }
+  }
+
+  // Undo — revert to pending
+  async undoEmployeeSignup(id: string) {
+    await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'pending' })
+    return { success: true }
+  }
+
+  // Delete permanently
+  async deleteEmployeeSignup(id: string) {
+    await this.employeeSignupModel.findByIdAndDelete(id)
     return { success: true }
   }
 
@@ -220,17 +230,17 @@ export class PublicService {
 
   async getTestimonials() {
     return [
-      { name: 'Fatima Al-Mansouri', location: 'Doha', service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.' },
-      { name: 'Khalid Al-Rashid',   location: 'Lusail', service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.' },
-      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.' },
+      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care',  rating: 5, text: 'Exceptional support for my mother after surgery.'          },
+      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care',  rating: 5, text: 'Our baby nurse was outstanding.'                           },
+      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care',  rating: 5, text: 'The family portal gives me real peace of mind.'            },
     ]
   }
 
   async getFaqs() {
     return [
       { q: 'What home healthcare services does Aethla Care provide in Qatar?', a: 'Aethla Care provides elderly care, disability support, maternity care, newborn care, telehealth coordination, and preventative wellness services across Qatar.' },
-      { q: 'Do you provide live-in caregivers in Doha?', a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.' },
-      { q: 'Is your care team multilingual?', a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.' },
+      { q: 'Do you provide live-in caregivers in Doha?',                       a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.'                                                                              },
+      { q: 'Is your care team multilingual?',                                  a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.'                                                                  },
     ]
   }
 }

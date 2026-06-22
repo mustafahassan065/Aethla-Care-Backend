@@ -29,18 +29,10 @@ export class Caregiver {
   @Prop()
   bio: string
 
-  @Prop({
-    type: String,
-    enum: ['active', 'inactive', 'on-leave', 'training'],
-    default: 'active',
-  })
+  @Prop({ type: String, enum: ['active', 'inactive', 'on-leave', 'training'], default: 'active' })
   status: string
 
-  @Prop({
-    type: String,
-    enum: ['pending', 'in-progress', 'clear', 'failed'],
-    default: 'pending',
-  })
+  @Prop({ type: String, enum: ['pending', 'in-progress', 'clear', 'failed'], default: 'pending' })
   backgroundCheckStatus: string
 
   @Prop({ type: Number, default: 0 })
@@ -51,10 +43,40 @@ export class Caregiver {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Client' }], default: [] })
   currentClients: Types.ObjectId[]
+
+  // Skills — employee adds their own skills list
+  @Prop({ type: [String], default: [] })
+  skills: string[]
+
+  // Availability — Full-Time, Part-Time, Live-In, Overnight, Weekends, On-Call
+  @Prop({ type: [String], default: [] })
+  availability: string[]
+
+  // Certifications & Credentials uploads
+  @Prop({ type: [{ type: Object }], default: [] })
+  certificates: {
+    name: string
+    data: string       // base64
+    uploadedAt: string
+  }[]
+
+  // Identification card upload
+  @Prop({ type: Object, default: null })
+  identificationCard: {
+    type: string       // Passport, QID, Driver's Licence etc.
+    data: string       // base64
+    uploadedAt: string
+  }
+
+  // Compliance document statuses
+  @Prop() backgroundCheck: string
+  @Prop() healthScreening: string
+  @Prop() insurance: string
 }
 
 export const CaregiverSchema = SchemaFactory.createForClass(Caregiver)
 
-// IMPORTANT: Do NOT add any pre-find hooks that auto-populate userId
-// This was causing CastError when userId contained full objects instead of ObjectIds
-// Population is now handled manually in the service layer
+CaregiverSchema.index({ userId: 1 })
+CaregiverSchema.index({ status: 1 })
+CaregiverSchema.index({ specializations: 1 })
+

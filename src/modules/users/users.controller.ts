@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { AuthGuard } from '@nestjs/passport'
 import { InjectModel } from '@nestjs/mongoose'
@@ -11,7 +11,7 @@ import * as bcrypt from 'bcryptjs'
 @Controller('users')
 export class UsersController {
   constructor(
-    @InjectModel('User') private userModel: Model<any>,
+    @InjectModel('User')   private userModel:   Model<any>,
     @InjectModel('Client') private clientModel: Model<any>,
   ) {}
 
@@ -48,8 +48,6 @@ export class UsersController {
 
   @Get('clients-list')
   async getClientsList() {
-    // For dropdown — all clients not yet linked to a family user
-    const linkedUserIds = await this.clientModel.distinct('userId', { userId: { $ne: null } })
     const clients = await this.clientModel
       .find({})
       .select('firstName lastName status')
@@ -61,17 +59,14 @@ export class UsersController {
   async create(@Body() dto: any) {
     const { clientId, ...userData } = dto
 
-    // Check email unique
     const existing = await this.userModel.findOne({ email: userData.email })
     if (existing) throw new Error('User with this email already exists')
 
-    // Hash password
     const hash = await bcrypt.hash(userData.password, 12)
     const user = await this.userModel.create({ ...userData, password: hash })
     const userObj = user.toObject()
     delete userObj.password
 
-    // If clientId provided, link client to this user
     if (clientId) {
       try {
         await this.clientModel.findByIdAndUpdate(
@@ -80,9 +75,7 @@ export class UsersController {
         )
         const client = await this.clientModel.findById(clientId, { firstName: 1, lastName: 1 })
         userObj.linkedClient = client
-      } catch (e) {
-        // User created but client link failed — not critical
-      }
+      } catch {}
     }
 
     return userObj
@@ -98,17 +91,22 @@ export class UsersController {
       .findByIdAndUpdate(id, userData, { new: true })
       .select('-password')
 
-    // Update client link if clientId provided
     if (clientId) {
-      // Remove old link first
       await this.clientModel.updateMany({ userId: new Types.ObjectId(id) }, { $set: { userId: null } })
-      // Set new link
-      await this.clientModel.findByIdAndUpdate(
-        new Types.ObjectId(clientId),
-        { userId: new Types.ObjectId(id) }
-      )
+      await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: new Types.ObjectId(id) })
     }
 
     return user
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    // Remove client link if family user
+    await this.clientModel.updateMany(
+      { userId: new Types.ObjectId(id) },
+      { $set: { userId: null } }
+    )
+    await this.userModel.findByIdAndDelete(id)
+    return { success: true }
   }
 }

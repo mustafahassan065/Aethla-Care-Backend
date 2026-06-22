@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { AuthGuard } from '@nestjs/passport'
 import { PublicService } from './public.service'
@@ -34,7 +34,7 @@ export class PublicController {
   @Get('faqs')
   getFaqs() { return this.svc.getFaqs() }
 
-  // ── Admin endpoints ───────────────────────────────────────
+  // ── Admin — Consultations ─────────────────────────────────
 
   @Get('consultations')
   @UseGuards(AuthGuard('jwt'))
@@ -46,6 +46,8 @@ export class PublicController {
   @ApiBearerAuth('JWT')
   updateConsultation(@Param('id') id: string, @Body() dto: any) { return this.svc.updateConsultation(id, dto) }
 
+  // ── Admin — Career Applications ───────────────────────────
+
   @Get('careers/applications')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
@@ -56,7 +58,8 @@ export class PublicController {
   @ApiBearerAuth('JWT')
   updateCareerApplication(@Param('id') id: string, @Body() dto: any) { return this.svc.updateCareerApplication(id, dto) }
 
-  // Patient signup admin
+  // ── Admin — Patient Signups ───────────────────────────────
+
   @Get('patient-signups')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
@@ -72,12 +75,19 @@ export class PublicController {
   @Patch('patient-signups/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  rejectPatientSignup(@Param('id') id: string, @Body() dto: any) {
+  updatePatientSignup(@Param('id') id: string, @Body() dto: any) {
     if (dto.status === 'rejected') return this.svc.rejectPatientSignup(id)
+    if (dto.status === 'pending')  return this.svc.undoPatientSignup(id)
     return this.svc.updateConsultation(id, dto)
   }
 
-  // Employee signup admin
+  @Delete('patient-signups/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  deletePatientSignup(@Param('id') id: string) { return this.svc.deletePatientSignup(id) }
+
+  // ── Admin — Employee Signups ──────────────────────────────
+
   @Get('employee-signups')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
@@ -91,8 +101,14 @@ export class PublicController {
   @Patch('employee-signups/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  rejectEmployeeSignup(@Param('id') id: string, @Body() dto: any) {
+  updateEmployeeSignup(@Param('id') id: string, @Body() dto: any) {
     if (dto.status === 'rejected') return this.svc.rejectEmployeeSignup(id)
+    if (dto.status === 'pending')  return this.svc.undoEmployeeSignup(id)
     return { success: true }
   }
+
+  @Delete('employee-signups/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  deleteEmployeeSignup(@Param('id') id: string) { return this.svc.deleteEmployeeSignup(id) }
 }
