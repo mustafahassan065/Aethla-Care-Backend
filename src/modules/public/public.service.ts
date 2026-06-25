@@ -20,7 +20,6 @@ export class PublicService {
     @InjectModel('Caregiver')            private caregiverModel:      Model<any>,
   ) {}
 
-  // ── Consultation ──────────────────────────────────────────
   async submitConsultation(dto: any) {
     await this.consultationModel.create({
       firstName: dto.firstName, lastName: dto.lastName,
@@ -48,7 +47,6 @@ export class PublicService {
     return c
   }
 
-  // ── Career Applications ───────────────────────────────────
   async submitCareerApp(dto: any) {
     await this.careerModel.create({ ...dto, status: 'new' })
     return { success: true, message: 'Application received. We will review and contact you within 3-5 working days.' }
@@ -71,7 +69,6 @@ export class PublicService {
     return a
   }
 
-  // ── Patient Signup ────────────────────────────────────────
   async submitPatientSignup(dto: any) {
     const existing = await this.patientSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -96,23 +93,23 @@ export class PublicService {
 
     const existingUser = await this.userModel.findOne({ email: signup.email })
     if (existingUser) {
-      if (clientId) {
-        await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: existingUser._id })
-      }
+      if (clientId) await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: existingUser._id })
       await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
       return { success: true, userId: existingUser._id }
     }
 
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
-      firstName: signup.firstName, lastName: signup.lastName,
-      email: signup.email, phone: signup.phone,
-      password: hash, role: 'family',
-      isActive: true, isVerified: true,
+      firstName:  signup.firstName        || '',
+      lastName:   signup.lastName         || '',
+      email:      signup.email,
+      phone:      signup.phone            || '',
+      password:   hash,
+      role:       'family',
+      isActive:   true,
+      isVerified: true,
     })
-    if (clientId) {
-      await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: user._id })
-    }
+    if (clientId) await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: user._id })
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
   }
@@ -122,19 +119,16 @@ export class PublicService {
     return { success: true }
   }
 
-  // Undo — revert to pending
   async undoPatientSignup(id: string) {
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'pending' })
     return { success: true }
   }
 
-  // Delete permanently
   async deletePatientSignup(id: string) {
     await this.patientSignupModel.findByIdAndDelete(id)
     return { success: true }
   }
 
-  // ── Employee Signup ───────────────────────────────────────
   async submitEmployeeSignup(dto: any) {
     const existing = await this.employeeSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -162,13 +156,13 @@ export class PublicService {
       const existingCg = await this.caregiverModel.findOne({ userId: existingUser._id })
       if (!existingCg) {
         await this.caregiverModel.create({
-          userId: existingUser._id,
-          specializations: signup.specialization ? [signup.specialization] : [],
-          licenseNumber: signup.licenseNumber,
-          experience: parseInt(signup.experience) || 0,
-          status: 'active',
-          backgroundCheckStatus: 'pending',
-          rating: 0,
+          userId:               existingUser._id,
+          specializations:      signup.specialization ? [signup.specialization] : [],
+          licenseNumber:        signup.licenseNumber  || '',
+          experience:           parseInt(signup.experience) || 0,
+          status:               'active',
+          backgroundCheckStatus:'pending',
+          rating:               0,
         })
       }
       await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'approved' })
@@ -177,19 +171,23 @@ export class PublicService {
 
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
-      firstName: signup.firstName, lastName: signup.lastName,
-      email: signup.email, phone: signup.phone,
-      password: hash, role: 'caregiver',
-      isActive: true, isVerified: true,
+      firstName:  signup.firstName        || '',
+      lastName:   signup.lastName         || '',
+      email:      signup.email,
+      phone:      signup.phone            || '',
+      password:   hash,
+      role:       'caregiver',
+      isActive:   true,
+      isVerified: true,
     })
     await this.caregiverModel.create({
-      userId: user._id,
-      specializations: signup.specialization ? [signup.specialization] : [],
-      licenseNumber: signup.licenseNumber,
-      experience: parseInt(signup.experience) || 0,
-      status: 'active',
-      backgroundCheckStatus: 'pending',
-      rating: 0,
+      userId:               user._id,
+      specializations:      signup.specialization ? [signup.specialization] : [],
+      licenseNumber:        signup.licenseNumber  || '',
+      experience:           parseInt(signup.experience) || 0,
+      status:               'active',
+      backgroundCheckStatus:'pending',
+      rating:               0,
     })
     await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
@@ -200,19 +198,16 @@ export class PublicService {
     return { success: true }
   }
 
-  // Undo — revert to pending
   async undoEmployeeSignup(id: string) {
     await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'pending' })
     return { success: true }
   }
 
-  // Delete permanently
   async deleteEmployeeSignup(id: string) {
     await this.employeeSignupModel.findByIdAndDelete(id)
     return { success: true }
   }
 
-  // ── Blog (public) ─────────────────────────────────────────
   async getBlog(query: any) {
     const { page = 1, limit = 9, category } = query
     const filter: any = { published: true }
@@ -230,17 +225,17 @@ export class PublicService {
 
   async getTestimonials() {
     return [
-      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care',  rating: 5, text: 'Exceptional support for my mother after surgery.'          },
-      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care',  rating: 5, text: 'Our baby nurse was outstanding.'                           },
-      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care',  rating: 5, text: 'The family portal gives me real peace of mind.'            },
+      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.'       },
+      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.'                        },
+      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.'         },
     ]
   }
 
   async getFaqs() {
     return [
       { q: 'What home healthcare services does Aethla Care provide in Qatar?', a: 'Aethla Care provides elderly care, disability support, maternity care, newborn care, telehealth coordination, and preventative wellness services across Qatar.' },
-      { q: 'Do you provide live-in caregivers in Doha?',                       a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.'                                                                              },
-      { q: 'Is your care team multilingual?',                                  a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.'                                                                  },
+      { q: 'Do you provide live-in caregivers in Doha?',                       a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.' },
+      { q: 'Is your care team multilingual?',                                  a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.' },
     ]
   }
 }
