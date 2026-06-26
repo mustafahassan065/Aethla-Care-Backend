@@ -1,6 +1,9 @@
 import { Controller, Post, Body, UseGuards, Get, Request, HttpCode, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { AuthGuard } from '@nestjs/passport'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
+import * as bcrypt from 'bcryptjs'
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
@@ -8,7 +11,10 @@ import { RefreshTokenDto } from './dto/refresh-token.dto'
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @InjectModel('User') private userModel: Model<any>,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -37,7 +43,23 @@ export class AuthController {
   @ApiBearerAuth('JWT')
   @ApiOperation({ summary: 'Get current user profile' })
   async me(@Request() req: any) {
-    return req.user
+    // Return full user from DB including isSuperAdmin
+    const user = await this.userModel.findById(req.user._id || req.user.sub).select('-password').lean()
+    return user
+  }
+
+  @Post('verify-pin')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  @HttpCode(HttpStatus.OK)
+  async verifyPin(@Request() req: any, @Body() body: { pin: string }) {
+    const userId = req.user._id || req.user.sub
+    const user = await this.userModel.findById(userId)
+    if (!user || !user.isSuperAdmin || !user.superAdminPin) {
+      return { valid: false }
+    }
+    const valid = await bcrypt.compare(body.pin, user.superAdminPin)
+    return { valid }
   }
 
   @Post('forgot-password')

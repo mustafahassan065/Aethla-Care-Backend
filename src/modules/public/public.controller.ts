@@ -22,6 +22,9 @@ export class PublicController {
   @Post('employee-signup')
   submitEmployeeSignup(@Body() dto: any) { return this.svc.submitEmployeeSignup(dto) }
 
+  @Post('admin-signup')
+  submitAdminSignup(@Body() dto: any) { return this.svc.submitAdminSignup(dto) }
+
   @Get('blog')
   getBlog(@Query() q: any) { return this.svc.getBlog(q) }
 
@@ -111,4 +114,30 @@ export class PublicController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
   deleteEmployeeSignup(@Param('id') id: string) { return this.svc.deleteEmployeeSignup(id) }
+
+  // ── Admin — Admin Signups ─────────────────────────────────
+
+  @Get('admin-signups')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  getAdminSignups(@Query() q: any) { return this.svc.getAdminSignups(q) }
+
+  @Post('admin-signups/:id/approve')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  approveAdminSignup(@Param('id') id: string) { return this.svc.approveAdminSignup(id) }
+
+  @Patch('admin-signups/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  updateAdminSignup(@Param('id') id: string, @Body() dto: any) {
+    if (dto.status === 'rejected') return this.svc.rejectAdminSignup(id)
+    if (dto.status === 'pending')  return this.svc.undoAdminSignup(id)
+    return { success: true }
+  }
+
+  @Delete('admin-signups/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  deleteAdminSignup(@Param('id') id: string) { return this.svc.deleteAdminSignup(id) }
 }

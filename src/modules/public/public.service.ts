@@ -18,8 +18,10 @@ export class PublicService {
     @InjectModel('User')                 private userModel:           Model<any>,
     @InjectModel('Client')               private clientModel:         Model<any>,
     @InjectModel('Caregiver')            private caregiverModel:      Model<any>,
+    @InjectModel('AdminSignup')          private adminSignupModel:    Model<any>,
   ) {}
 
+  // ── Consultation ──────────────────────────────────────────
   async submitConsultation(dto: any) {
     await this.consultationModel.create({
       firstName: dto.firstName, lastName: dto.lastName,
@@ -47,6 +49,7 @@ export class PublicService {
     return c
   }
 
+  // ── Career Applications ───────────────────────────────────
   async submitCareerApp(dto: any) {
     await this.careerModel.create({ ...dto, status: 'new' })
     return { success: true, message: 'Application received. We will review and contact you within 3-5 working days.' }
@@ -69,6 +72,7 @@ export class PublicService {
     return a
   }
 
+  // ── Patient Signup ────────────────────────────────────────
   async submitPatientSignup(dto: any) {
     const existing = await this.patientSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -100,14 +104,9 @@ export class PublicService {
 
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
-      firstName:  signup.firstName        || '',
-      lastName:   signup.lastName         || '',
-      email:      signup.email,
-      phone:      signup.phone            || '',
-      password:   hash,
-      role:       'family',
-      isActive:   true,
-      isVerified: true,
+      firstName: signup.firstName || '', lastName: signup.lastName || '',
+      email: signup.email, phone: signup.phone || '',
+      password: hash, role: 'family', isActive: true, isVerified: true,
     })
     if (clientId) await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: user._id })
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
@@ -129,6 +128,7 @@ export class PublicService {
     return { success: true }
   }
 
+  // ── Employee Signup ───────────────────────────────────────
   async submitEmployeeSignup(dto: any) {
     const existing = await this.employeeSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -156,13 +156,11 @@ export class PublicService {
       const existingCg = await this.caregiverModel.findOne({ userId: existingUser._id })
       if (!existingCg) {
         await this.caregiverModel.create({
-          userId:               existingUser._id,
-          specializations:      signup.specialization ? [signup.specialization] : [],
-          licenseNumber:        signup.licenseNumber  || '',
-          experience:           parseInt(signup.experience) || 0,
-          status:               'active',
-          backgroundCheckStatus:'pending',
-          rating:               0,
+          userId: existingUser._id,
+          specializations: signup.specialization ? [signup.specialization] : [],
+          licenseNumber: signup.licenseNumber || '',
+          experience: parseInt(signup.experience) || 0,
+          status: 'active', backgroundCheckStatus: 'pending', rating: 0,
         })
       }
       await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'approved' })
@@ -171,23 +169,16 @@ export class PublicService {
 
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
-      firstName:  signup.firstName        || '',
-      lastName:   signup.lastName         || '',
-      email:      signup.email,
-      phone:      signup.phone            || '',
-      password:   hash,
-      role:       'caregiver',
-      isActive:   true,
-      isVerified: true,
+      firstName: signup.firstName || '', lastName: signup.lastName || '',
+      email: signup.email, phone: signup.phone || '',
+      password: hash, role: 'caregiver', isActive: true, isVerified: true,
     })
     await this.caregiverModel.create({
-      userId:               user._id,
-      specializations:      signup.specialization ? [signup.specialization] : [],
-      licenseNumber:        signup.licenseNumber  || '',
-      experience:           parseInt(signup.experience) || 0,
-      status:               'active',
-      backgroundCheckStatus:'pending',
-      rating:               0,
+      userId: user._id,
+      specializations: signup.specialization ? [signup.specialization] : [],
+      licenseNumber: signup.licenseNumber || '',
+      experience: parseInt(signup.experience) || 0,
+      status: 'active', backgroundCheckStatus: 'pending', rating: 0,
     })
     await this.employeeSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
@@ -208,6 +199,65 @@ export class PublicService {
     return { success: true }
   }
 
+  // ── Admin Signup ──────────────────────────────────────────
+  async submitAdminSignup(dto: any) {
+    const existingSignup = await this.adminSignupModel.findOne({ email: dto.email })
+    if (existingSignup) throw new BadRequestException('A request with this email already exists')
+    const existingUser = await this.userModel.findOne({ email: dto.email })
+    if (existingUser) throw new BadRequestException('An account with this email already exists')
+    await this.adminSignupModel.create({ ...dto, status: 'pending' })
+    return { success: true, message: 'Access request submitted. An administrator will review your request.' }
+  }
+
+  async getAdminSignups(query: any) {
+    const { page = 1, limit = 20, status } = query
+    const filter: any = {}
+    if (status) filter.status = status
+    const [data, total] = await Promise.all([
+      this.adminSignupModel.find(filter).skip((+page-1)*+limit).limit(+limit).sort({ createdAt: -1 }),
+      this.adminSignupModel.countDocuments(filter),
+    ])
+    return { data, total, page: +page, limit: +limit }
+  }
+
+  async approveAdminSignup(id: string) {
+    const signup = await this.adminSignupModel.findById(id)
+    if (!signup) throw new NotFoundException('Signup not found')
+
+    const existingUser = await this.userModel.findOne({ email: signup.email })
+    if (existingUser) {
+      await this.adminSignupModel.findByIdAndUpdate(id, { status: 'approved' })
+      return { success: true, userId: existingUser._id }
+    }
+
+    const hash = await bcrypt.hash(signup.password, 12)
+    const user = await this.userModel.create({
+      firstName: signup.firstName || '', lastName: signup.lastName || '',
+      email: signup.email, phone: signup.phone || '',
+      password: hash, role: 'admin',
+      isSuperAdmin: false,
+      isActive: true, isVerified: true,
+    })
+    await this.adminSignupModel.findByIdAndUpdate(id, { status: 'approved' })
+    return { success: true, userId: user._id }
+  }
+
+  async rejectAdminSignup(id: string) {
+    await this.adminSignupModel.findByIdAndUpdate(id, { status: 'rejected' })
+    return { success: true }
+  }
+
+  async undoAdminSignup(id: string) {
+    await this.adminSignupModel.findByIdAndUpdate(id, { status: 'pending' })
+    return { success: true }
+  }
+
+  async deleteAdminSignup(id: string) {
+    await this.adminSignupModel.findByIdAndDelete(id)
+    return { success: true }
+  }
+
+  // ── Blog (public) ─────────────────────────────────────────
   async getBlog(query: any) {
     const { page = 1, limit = 9, category } = query
     const filter: any = { published: true }
@@ -225,9 +275,9 @@ export class PublicService {
 
   async getTestimonials() {
     return [
-      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.'       },
-      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.'                        },
-      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.'         },
+      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.'  },
+      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.'                   },
+      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.'    },
     ]
   }
 
