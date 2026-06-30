@@ -21,7 +21,6 @@ export class PublicService {
     @InjectModel('AdminSignup')          private adminSignupModel:    Model<any>,
   ) {}
 
-  // ── Consultation ──────────────────────────────────────────
   async submitConsultation(dto: any) {
     await this.consultationModel.create({
       firstName: dto.firstName, lastName: dto.lastName,
@@ -49,7 +48,6 @@ export class PublicService {
     return c
   }
 
-  // ── Career Applications ───────────────────────────────────
   async submitCareerApp(dto: any) {
     await this.careerModel.create({ ...dto, status: 'new' })
     return { success: true, message: 'Application received. We will review and contact you within 3-5 working days.' }
@@ -72,7 +70,6 @@ export class PublicService {
     return a
   }
 
-  // ── Patient Signup ────────────────────────────────────────
   async submitPatientSignup(dto: any) {
     const existing = await this.patientSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -96,19 +93,56 @@ export class PublicService {
     if (!signup) throw new NotFoundException('Signup not found')
 
     const existingUser = await this.userModel.findOne({ email: signup.email })
-    if (existingUser) {
-      if (clientId) await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: existingUser._id })
-      await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
-      return { success: true, userId: existingUser._id }
+    let user = existingUser
+
+    if (!existingUser) {
+      const hash = await bcrypt.hash(signup.password, 12)
+      user = await this.userModel.create({
+        firstName:  signup.firstName  || '',
+        lastName:   signup.lastName   || '',
+        email:      signup.email,
+        phone:      signup.phone      || '',
+        password:   hash,
+        role:       'family',
+        // Store actual account type for display
+        accountType: signup.accountType || 'patient',
+        isActive:   true,
+        isVerified: true,
+      })
     }
 
-    const hash = await bcrypt.hash(signup.password, 12)
-    const user = await this.userModel.create({
-      firstName: signup.firstName || '', lastName: signup.lastName || '',
-      email: signup.email, phone: signup.phone || '',
-      password: hash, role: 'family', isActive: true, isVerified: true,
-    })
-    if (clientId) await this.clientModel.findByIdAndUpdate(new Types.ObjectId(clientId), { userId: user._id })
+    // If clientId provided, link that client
+    if (clientId) {
+      await this.clientModel.findByIdAndUpdate(
+        new Types.ObjectId(clientId),
+        { userId: user._id }
+      )
+    } else {
+      // Auto-create client record if not exists and not linked
+      const existingClient = await this.clientModel.findOne({ userId: user._id })
+      if (!existingClient) {
+        // Determine patient name
+        const patientFirst = signup.isSelf ? signup.firstName : (signup.patientFirstName || signup.firstName)
+        const patientLast  = signup.isSelf ? signup.lastName  : (signup.patientLastName  || signup.lastName)
+
+        await this.clientModel.create({
+          userId:    user._id,
+          firstName: patientFirst || '',
+          lastName:  patientLast  || '',
+          email:     signup.email,
+          phone:     signup.phone || '',
+          status:    'active',
+          careType:  [],
+          medicalConditions: [],
+          allergies: [],
+          medications: [],
+          emergencyContacts: [],
+          assignedCaregivers: [],
+          consentSigned: false,
+        })
+      }
+    }
+
     await this.patientSignupModel.findByIdAndUpdate(id, { status: 'approved' })
     return { success: true, userId: user._id }
   }
@@ -128,7 +162,6 @@ export class PublicService {
     return { success: true }
   }
 
-  // ── Employee Signup ───────────────────────────────────────
   async submitEmployeeSignup(dto: any) {
     const existing = await this.employeeSignupModel.findOne({ email: dto.email })
     if (existing) throw new BadRequestException('An application with this email already exists')
@@ -199,7 +232,7 @@ export class PublicService {
     return { success: true }
   }
 
-  // ── Admin Signup ──────────────────────────────────────────
+  // Admin Signup
   async submitAdminSignup(dto: any) {
     const existingSignup = await this.adminSignupModel.findOne({ email: dto.email })
     if (existingSignup) throw new BadRequestException('A request with this email already exists')
@@ -223,19 +256,16 @@ export class PublicService {
   async approveAdminSignup(id: string) {
     const signup = await this.adminSignupModel.findById(id)
     if (!signup) throw new NotFoundException('Signup not found')
-
     const existingUser = await this.userModel.findOne({ email: signup.email })
     if (existingUser) {
       await this.adminSignupModel.findByIdAndUpdate(id, { status: 'approved' })
       return { success: true, userId: existingUser._id }
     }
-
     const hash = await bcrypt.hash(signup.password, 12)
     const user = await this.userModel.create({
       firstName: signup.firstName || '', lastName: signup.lastName || '',
       email: signup.email, phone: signup.phone || '',
-      password: hash, role: 'admin',
-      isSuperAdmin: false,
+      password: hash, role: 'admin', isSuperAdmin: false,
       isActive: true, isVerified: true,
     })
     await this.adminSignupModel.findByIdAndUpdate(id, { status: 'approved' })
@@ -257,7 +287,6 @@ export class PublicService {
     return { success: true }
   }
 
-  // ── Blog (public) ─────────────────────────────────────────
   async getBlog(query: any) {
     const { page = 1, limit = 9, category } = query
     const filter: any = { published: true }
@@ -275,17 +304,17 @@ export class PublicService {
 
   async getTestimonials() {
     return [
-      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.'  },
-      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.'                   },
-      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.'    },
+      { name: 'Fatima Al-Mansouri', location: 'Doha',      service: 'Elderly Care', rating: 5, text: 'Exceptional support for my mother after surgery.' },
+      { name: 'Khalid Al-Rashid',   location: 'Lusail',    service: 'Newborn Care', rating: 5, text: 'Our baby nurse was outstanding.' },
+      { name: 'Sara Al-Qahtani',    location: 'Al Rayyan', service: 'Elderly Care', rating: 5, text: 'The family portal gives me real peace of mind.' },
     ]
   }
 
   async getFaqs() {
     return [
       { q: 'What home healthcare services does Aethla Care provide in Qatar?', a: 'Aethla Care provides elderly care, disability support, maternity care, newborn care, telehealth coordination, and preventative wellness services across Qatar.' },
-      { q: 'Do you provide live-in caregivers in Doha?',                       a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.' },
-      { q: 'Is your care team multilingual?',                                  a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.' },
+      { q: 'Do you provide live-in caregivers in Doha?', a: 'Yes, Aethla Care offers both live-in and scheduled caregiver support services.' },
+      { q: 'Is your care team multilingual?', a: 'Yes, our caregivers and coordinators support multiple languages for our diverse community.' },
     ]
   }
 }

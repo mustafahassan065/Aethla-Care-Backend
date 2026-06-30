@@ -18,14 +18,12 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with email and password' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto)
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto.refreshToken)
   }
@@ -41,10 +39,11 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get current user profile' })
   async me(@Request() req: any) {
-    // Return full user from DB including isSuperAdmin
-    const user = await this.userModel.findById(req.user._id || req.user.sub).select('-password').lean()
+    const user = await this.userModel
+      .findById(req.user._id || req.user.sub)
+      .select('-password')
+      .lean()
     return user
   }
 
@@ -55,9 +54,7 @@ export class AuthController {
   async verifyPin(@Request() req: any, @Body() body: { pin: string }) {
     const userId = req.user._id || req.user.sub
     const user = await this.userModel.findById(userId)
-    if (!user || !user.isSuperAdmin || !user.superAdminPin) {
-      return { valid: false }
-    }
+    if (!user || !user.isSuperAdmin || !user.superAdminPin) return { valid: false }
     const valid = await bcrypt.compare(body.pin, user.superAdminPin)
     return { valid }
   }

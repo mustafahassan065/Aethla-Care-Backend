@@ -12,9 +12,12 @@ export class User extends Document {
   @Prop({ required: true }) phone: string
   @Prop({ enum: ['admin','coordinator','caregiver','family','accountant'], default: 'coordinator' }) role: UserRole
   @Prop() avatar?: string
-  @Prop({ default: true }) isActive: boolean
+  @Prop({ default: true })  isActive: boolean
   @Prop({ default: false }) isVerified: boolean
   @Prop({ default: false }) mfaEnabled: boolean
+  @Prop({ default: false }) isSuperAdmin: boolean
+  @Prop() superAdminPin?: string
+  @Prop() accountType?: string   // patient, guardian, carer, representative
   @Prop() lastLoginAt?: Date
   @Prop() passwordResetToken?: string
   @Prop() passwordResetExpires?: Date
