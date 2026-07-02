@@ -92,54 +92,58 @@ export class PublicService {
     const signup = await this.patientSignupModel.findById(id)
     if (!signup) throw new NotFoundException('Signup not found')
 
-    const existingUser = await this.userModel.findOne({ email: signup.email })
-    let user = existingUser
-
-    if (!existingUser) {
+    // Create or find user
+    let user = await this.userModel.findOne({ email: signup.email })
+    if (!user) {
       const hash = await bcrypt.hash(signup.password, 12)
       user = await this.userModel.create({
-        firstName:  signup.firstName  || '',
-        lastName:   signup.lastName   || '',
-        email:      signup.email,
-        phone:      signup.phone      || '',
-        password:   hash,
-        role:       'family',
-        // Store actual account type for display
+        firstName:   signup.firstName   || '',
+        lastName:    signup.lastName    || '',
+        email:       signup.email,
+        phone:       signup.phone       || '',
+        password:    hash,
+        role:        'family',
         accountType: signup.accountType || 'patient',
-        isActive:   true,
-        isVerified: true,
+        isActive:    true,
+        isVerified:  true,
       })
     }
 
-    // If clientId provided, link that client
     if (clientId) {
+      // Admin manually linked a client
       await this.clientModel.findByIdAndUpdate(
         new Types.ObjectId(clientId),
         { userId: user._id }
       )
     } else {
-      // Auto-create client record if not exists and not linked
+      // Auto-create client record linked to this user
       const existingClient = await this.clientModel.findOne({ userId: user._id })
       if (!existingClient) {
-        // Determine patient name
-        const patientFirst = signup.isSelf ? signup.firstName : (signup.patientFirstName || signup.firstName)
-        const patientLast  = signup.isSelf ? signup.lastName  : (signup.patientLastName  || signup.lastName)
+        const patientFirst = signup.isSelf
+          ? (signup.firstName || '')
+          : (signup.patientFirstName || signup.firstName || '')
+        const patientLast = signup.isSelf
+          ? (signup.lastName || '')
+          : (signup.patientLastName || signup.lastName || '')
 
         await this.clientModel.create({
-          userId:    user._id,
-          firstName: patientFirst || '',
-          lastName:  patientLast  || '',
-          email:     signup.email,
-          phone:     signup.phone || '',
-          status:    'active',
-          careType:  [],
-          medicalConditions: [],
-          allergies: [],
-          medications: [],
-          emergencyContacts: [],
+          userId:             user._id,
+          firstName:          patientFirst,
+          lastName:           patientLast,
+          email:              signup.email,
+          phone:              signup.phone       || '',
+          status:             'active',
+          careType:           [],
+          medicalConditions:  [],
+          allergies:          [],
+          medications:        [],
+          emergencyContacts:  [],
           assignedCaregivers: [],
-          consentSigned: false,
+          consentSigned:      false,
         })
+      } else if (!existingClient.userId) {
+        // Client exists but not linked — link it
+        await this.clientModel.findByIdAndUpdate(existingClient._id, { userId: user._id })
       }
     }
 
@@ -232,7 +236,6 @@ export class PublicService {
     return { success: true }
   }
 
-  // Admin Signup
   async submitAdminSignup(dto: any) {
     const existingSignup = await this.adminSignupModel.findOne({ email: dto.email })
     if (existingSignup) throw new BadRequestException('A request with this email already exists')

@@ -5,71 +5,115 @@ import { Client } from './schemas/client.schema'
 
 @Injectable()
 export class ClientsService {
-  constructor(@InjectModel(Client.name) private clientModel: Model<Client>) {}
+  constructor(
+    @InjectModel(Client.name) private model: Model<Client>,
+  ) {}
 
   async findAll(query: any) {
-    const { page = 1, limit = 20, status, careType, search, userId } = query
+    const { page = 1, limit = 200, status, search } = query
     const filter: any = {}
-    if (status)   filter.status   = status
-    if (careType) filter.careType = careType
-    if (userId)   filter.userId   = userId
-    if (search) filter.$or = [
-      { firstName:  { $regex: search, $options: 'i' } },
-      { lastName:   { $regex: search, $options: 'i' } },
-      { phone:      { $regex: search, $options: 'i' } },
-    ]
+    if (status) filter.status = status
+    if (search) {
+      filter.$or = [
+        { firstName: new RegExp(search, 'i') },
+        { lastName:  new RegExp(search, 'i') },
+        { email:     new RegExp(search, 'i') },
+      ]
+    }
+
     const [data, total] = await Promise.all([
-      this.clientModel.find(filter).skip((+page - 1) * +limit).limit(+limit).sort({ createdAt: -1 }),
-      this.clientModel.countDocuments(filter),
+      this.model
+        .find(filter)
+        .populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName' } })
+        .skip((+page - 1) * +limit)
+        .limit(+limit)
+        .sort({ createdAt: -1 }),
+      this.model.countDocuments(filter),
     ])
+
     return { data, total, page: +page, limit: +limit, totalPages: Math.ceil(total / +limit) }
   }
 
   async findOne(id: string) {
-    const client = await this.clientModel.findById(id)
+    const client = await this.model
+      .findById(id)
+      .populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName email phone' } })
     if (!client) throw new NotFoundException('Client not found')
     return client
   }
 
-  // Family portal — get client record linked to this user
   async findByUserId(userId: string) {
-    return this.clientModel.findOne({
-      userId: new Types.ObjectId(userId)
-    })
+    return this.model
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName email phone' } })
   }
 
   async create(dto: any) {
-    // If userId provided, convert to ObjectId
+    // If userId provided, ensure it's ObjectId
     if (dto.userId) {
-      try { dto.userId = new Types.ObjectId(dto.userId) } catch { delete dto.userId }
+      try { dto.userId = new Types.ObjectId(dto.userId) } catch {}
     }
-    return this.clientModel.create(dto)
+    return this.model.create(dto)
   }
 
   async update(id: string, dto: any) {
-    // If userId provided, convert to ObjectId
+    // Handle userId conversion
     if (dto.userId) {
-      try { dto.userId = new Types.ObjectId(dto.userId) } catch { delete dto.userId }
+      try { dto.userId = new Types.ObjectId(dto.userId) } catch {}
     }
-    const client = await this.clientModel.findByIdAndUpdate(id, dto, { new: true })
+    // Handle assignedCaregivers conversion
+    if (dto.assignedCaregivers && Array.isArray(dto.assignedCaregivers)) {
+      dto.assignedCaregivers = dto.assignedCaregivers.map((cid: string) => {
+        try { return new Types.ObjectId(cid) } catch { return cid }
+      })
+    }
+    const client = await this.model
+      .findByIdAndUpdate(id, dto, { new: true })
+      .populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName' } })
     if (!client) throw new NotFoundException('Client not found')
     return client
   }
 
   async remove(id: string) {
-    return this.clientModel.findByIdAndUpdate(id, { status: 'discharged' }, { new: true })
+    await this.model.findByIdAndDelete(id)
+    return { success: true }
+  }
+
+  // Assign caregiver to client
+  async assignCaregiver(clientId: string, caregiverId: string) {
+    const client = await this.model.findByIdAndUpdate(
+      clientId,
+      { $addToSet: { assignedCaregivers: new Types.ObjectId(caregiverId) } },
+      { new: true }
+    ).populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName' } })
+    if (!client) throw new NotFoundException('Client not found')
+    return client
+  }
+
+  // Remove caregiver from client
+  async removeCaregiver(clientId: string, caregiverId: string) {
+    const client = await this.model.findByIdAndUpdate(
+      clientId,
+      { $pull: { assignedCaregivers: new Types.ObjectId(caregiverId) } },
+      { new: true }
+    ).populate({ path: 'assignedCaregivers', populate: { path: 'userId', select: 'firstName lastName' } })
+    if (!client) throw new NotFoundException('Client not found')
+    return client
   }
 
   async getCarePlan(id: string) {
-    const client = await this.findOne(id)
-    return client.carePlan || null
+    const client = await this.model.findById(id)
+    if (!client) throw new NotFoundException('Client not found')
+    return (client as any).carePlan || {}
   }
 
   async updateCarePlan(id: string, dto: any) {
-    return this.clientModel.findByIdAndUpdate(id, { carePlan: dto }, { new: true })
-  }
-
-  async getHistory(id: string) {
-    return { clientId: id, notes: [], schedules: [] }
+    const client = await this.model.findByIdAndUpdate(
+      id,
+      { carePlan: dto },
+      { new: true }
+    )
+    if (!client) throw new NotFoundException('Client not found')
+    return client
   }
 }
